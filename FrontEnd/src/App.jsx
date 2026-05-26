@@ -4,7 +4,7 @@ function App() {
   const [health, setHealth] = useState(null)
 
   useEffect(() => {
-    fetch('http://localhost:3001/health')
+    fetch('http://BackEnd:3001/health')
       .then(res => res.json())
       .then(data => setHealth(data))
       .catch(() => setHealth({ status: 'erro' }))
@@ -12,7 +12,7 @@ function App() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <h1>🧪 DashLab</h1>
+      <h1>DashLab</h1>
       <p>Painel de monitoramento da aplicação</p>
 
       <div style={{ marginTop: '2rem', padding: '1rem', background: '#f0f0f0', borderRadius: '8px' }}>
