@@ -61,7 +61,7 @@ As rotas atualmente implementadas no BackEnd são simples e servem como exemplo:
 - `GET /api` — endpoint principal da API:
 
 ```json
-{ "message": "DashLab API", "version": "1.0.0" }
+{ "message": "DashLab API", "version": "0.1.0" }
 ```
 
 Exemplo de chamada com `curl`:
