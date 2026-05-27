@@ -1,18 +1,18 @@
 services:
-  BackEnd:
+  backend:
     build: ./BackEnd
-    container: DashLab-BackEnd
+    container_name: dashlab-backend
     ports:
     - "3001:3001"
-    enviroment:
+    environment:
     - PORT=3001
     - NODE_ENV=production
 
-  FrontEnd:
+  frontend:
     build: ./FrontEnd
-    container_name: DashLab-FrontEnd
+    container_name: dashlab-frontend
     ports:
     - "80:80"
     depends_on:
-      - BackEnd
+      - backend
 
