@@ -4,7 +4,7 @@ function App() {
   const [health, setHealth] = useState(null)
 
   useEffect(() => {
-    fetch('http://BackEnd:3001/health')
+    fetch('/health')
       .then(res => res.json())
       .then(data => setHealth(data))
       .catch(() => setHealth({ status: 'erro' }))
