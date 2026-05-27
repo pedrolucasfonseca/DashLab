@@ -19,7 +19,12 @@ Arquitetura do repositório
 - `FrontEnd/` -> aplicação React (Vite)
   - `src/` -> código-fonte React
   - `public/` -> ativos públicos
-- `Terraform/` -> configuração de infraestrutura como código (opcional)
+  - `nginx.conf` -> configuração do Nginx como proxy reverso para o backend
+- `Terraform/` -> configuração de infraestrutura como código
+  - `main.tf` -> configuração do provider AWS
+  - `variables.tf` -> variáveis do projeto
+  - `outputs.tf` -> saídas após provisionamento
+  - `vpc.tf` -> VPC, subnets, internet gateway e route table
 - `docker-compose.yml` -> composição para execução em containers
 
 Pré-requisitos
@@ -29,6 +34,7 @@ Pré-requisitos
 - npm ou yarn
 - Docker e Docker Compose (para execução em containers)
 - Terraform (apenas se for utilizar a pasta `Terraform/`)
+- AWS CLI configurado com usuário IAM com permissões adequadas
 
 Instalação e execução (desenvolvimento)
 --------------------------------------
@@ -83,11 +89,16 @@ Você pode optar por adicionar um `package.json` raiz que execute ambos os servi
 Variáveis de ambiente
 ---------------------
 
-O repositório inclui um arquivo de exemplo em `BackEnd/.env.example`. Recomenda-se copiar esse arquivo para `BackEnd/.env` e ajustar conforme necessário (PORT, credenciais externas, strings de conexão, chaves de API):
+O repositório inclui um arquivo de exemplo em `BackEnd/.env.example`. Recomenda-se copiar esse arquivo para `BackEnd/.env` e ajustar conforme necessário:
 
 ```bash
 cp BackEnd/.env.example BackEnd/.env
 ```
+
+Variáveis disponíveis:
+
+- `PORT` -> porta em que o servidor escuta (padrão: 3001)
+- `NODE_ENV` -> ambiente de execução (`development` ou `production`)
 
 APIs e contratos expostos
 ------------------------
@@ -97,13 +108,19 @@ Endpoints principais (exposição pública de desenvolvimento):
 - `GET /health` -> verificação de integridade. Resposta de exemplo:
 
 ```json
-{ "status": "ok", "timestamp": "2026-05-26T12:34:56.789Z" }
+{ 
+"status": "ok",
+"timestamp": "2026-05-26T12:34:56.789Z"
+}
 ```
 
-- `GET /api` - endpoint principal da API. Resposta de exemplo:
+- `GET /api` -> endpoint principal da API. Resposta de exemplo:
 
 ```json
-{ "message": "DashLab API", "version": "0.1.0" }
+{
+"message": "DashLab API", 
+"version": "0.1.0"
+}
 ```
 
 Exemplo de verificação rápida via `curl`:
@@ -118,20 +135,27 @@ Docker e implantação em containers
 
 Este repositório inclui os arquivos necessários para construção e execução em containers:
 
-- `docker-compose.yml` - orquestra os serviços do FrontEnd e do BackEnd para execução local ou em ambientes de homologação
-- `BackEnd/Dockerfile` - imagem do servidor Node.js
-- `FrontEnd/Dockerfile` - imagem da aplicação Vite/React
+- `docker-compose.yml` -> orquestra os serviços do FrontEnd e do BackEnd
+- `BackEnd/Dockerfile` -> imagem do servidor Node.js
+- `FrontEnd/Dockerfile` -> imagem da aplicação Vite/React com build multi-stage
+- `FrontEnd/nginx.conf` -> configura o Nginx para servir o frontend e redirecionar as chamadas `/health` e `/api` para o backend via proxy reverso
 
 Comando de implantação local em containers:
 
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 Infraestrutura como código (Terraform)
 -------------------------------------
 
-A pasta `Terraform/` contém arquivos de exemplo para provisionamento de infraestrutura. Antes de executar em uma conta real, revise os arquivos `main.tf`, `variables.tf` e `outputs.tf` e confirme as credenciais e políticas de acesso.
+A pasta `Terraform/` contém a configuração de infraestrutura provisionada na AWS. A infraestrutura atual inclui:
+
+- **VPC** `10.0.0.0/16` com DNS habilitado
+- **Subnet pública A** `10.0.1.0/24` na zona `us-east-1a`
+- **Subnet pública B** `10.0.2.0/24` na zona `us-east-1b`
+- **Internet Gateway** para acesso público
+- **Route Table** com roteamento para a internet
 
 Fluxo recomendado:
 
@@ -142,14 +166,21 @@ terraform plan
 terraform apply
 ```
 
+Para destruir a infraestrutura:
+
+```bash
+terraform destroy
+```
+
 Práticas de segurança e operação
 --------------------------------
 
 - Não versionar credenciais ou `.env` em repositórios públicos
-- Utilize variáveis de ambiente ou serviços de secret management em ambientes de produção
+- Utilize variáveis de ambiente ou serviços de secret management em produção
 - Monitore logs e configure health checks para containers e serviços
+- Destrua a infraestrutura AWS quando não estiver em uso para evitar cobranças
 
 Suporte e contatos
 -------------------
 
-Para dúvidas, reporte issues no repositório Git ou me contate (pedrolucasfonseca98@gmail.com).
+Para dúvidas, reporte issues no repositório Git ou entre em contato: [pedrolucasfonseca98@gmail.com](mailto:pedrolucasfonseca98@gmail.com)
