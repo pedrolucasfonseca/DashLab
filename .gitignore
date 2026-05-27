@@ -20,9 +20,9 @@ build/
 *.log
 
 # Terraform
-Terraform/.terraform/
-Terraform/terraform.tfstate
-Terraform/terraform.tfstate.*
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.*
 
 # OS / Editor
 .DS_Store
