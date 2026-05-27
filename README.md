@@ -1,136 +1,155 @@
 # DashLab
 
-Projeto monorepo contendo o FrontEnd (Vite + React) e o BackEnd (Node.js/Express).
+Visão geral
+-----------------------
 
-## Visão geral
+DashLab é um repositório monolítico (monorepo) que reúne uma aplicação construída com Vite + React (`FrontEnd/`) e um servidor de API em Node.js/Express (`BackEnd/`). O projeto foi estruturado para aprender mais a fundo sobre desenvolvimento local, integração contínua e implantação em containers.
 
-- FrontEnd: aplicação React construída com Vite.
-- BackEnd: servidor Node.js com rotas Express em `BackEnd/src/routes`.
+Objetivos deste documento
+- Fornecer instruções claras sobre instalação, execução e implantação
+- Descrever a arquitetura e os arquivos principais do repositório
+- Registrar práticas recomendadas para desenvolvimento e operação
 
-## Estrutura do projeto
+Arquitetura do repositório
+--------------------------
 
-- `BackEnd/` - servidor e APIs
-  - `src/` - código fonte do servidor
-    - `routes/` - rotas (`api.js`, `health.js`)
-- `FrontEnd/` - aplicação cliente (Vite + React)
-  - `src/` - código fonte React
-  - `public/` - ativos públicos
+- `BackEnd/` -> servidor Node.js, rotas e configurações de API
+  - `src/` -> código-fonte do servidor
+  - `src/routes/` -> rotas expostas (`health.js`, `api.js`)
+- `FrontEnd/` -> aplicação React (Vite)
+  - `src/` -> código-fonte React
+  - `public/` -> ativos públicos
+- `Terraform/` -> configuração de infraestrutura como código (opcional)
+- `docker-compose.yml` -> composição para execução em containers
 
-## Pré-requisitos
+Pré-requisitos
+--------------
 
-- Node.js (recomendado v14+)
+- Node.js (recomendado LTS recente)
 - npm ou yarn
-## Instalação e execução
+- Docker e Docker Compose (para execução em containers)
+- Terraform (apenas se for utilizar a pasta `Terraform/`)
 
-Siga os passos abaixo para instalar dependências e executar cada parte do monorepo.
+Instalação e execução (desenvolvimento)
+--------------------------------------
 
-1) Backend
+Siga estas etapas para executar os serviços localmente em modo de desenvolvimento.
+
+1) BackEnd
 
 ```bash
 cd BackEnd
 npm install
-# Modo desenvolvimento (recarrega com alterações)
+# Modo desenvolvimento (com nodemon)
 npm run dev
-# Ou executar em produção
-npm start
 ```
 
-O BackEnd usa a porta padrão `3001` (variável `PORT`). A rota de health estará disponível em `http://localhost:3001/health`.
+O servidor utiliza a variável `PORT` quando definida; por padrão, escuta na porta `3001`.
 
-2) Frontend
+2) FrontEnd
 
 ```bash
 cd FrontEnd
 npm install
-# Executar app em desenvolvimento (Vite)
+# Executar Vite em modo de desenvolvimento
 npm run dev
 ```
 
-Por padrão o Vite mostra a porta no terminal (ex.: `http://localhost:5173`).
+O Vite exibirá a URL de desenvolvimento no terminal (por exemplo, `http://localhost:5173`).
 
-## Exemplos de API
+Execução conjunta (desenvolvimento)
+----------------------------------
 
-As rotas atualmente implementadas no BackEnd são simples e servem como exemplo:
+Opções recomendadas para executar ambos os serviços simultaneamente:
 
-- `GET /health` — resposta de verificação de saúde:
+- Terminais separados (rápido e direto):
+
+```bash
+cd BackEnd && npm run dev
+cd FrontEnd && npm run dev
+```
+
+- Docker Compose (recomendado para simular ambiente de containers):
+
+```bash
+docker compose up --build
+```
+
+Automação de scripts
+---------------------
+
+Você pode optar por adicionar um `package.json` raiz que execute ambos os serviços com `concurrently` para conveniência em desenvolvimento.
+
+Variáveis de ambiente
+---------------------
+
+O repositório inclui um arquivo de exemplo em `BackEnd/.env.example`. Recomenda-se copiar esse arquivo para `BackEnd/.env` e ajustar conforme necessário (PORT, credenciais externas, strings de conexão, chaves de API):
+
+```bash
+cp BackEnd/.env.example BackEnd/.env
+```
+
+APIs e contratos expostos
+------------------------
+
+Endpoints principais (exposição pública de desenvolvimento):
+
+- `GET /health` -> verificação de integridade. Resposta de exemplo:
 
 ```json
 { "status": "ok", "timestamp": "2026-05-26T12:34:56.789Z" }
 ```
 
-- `GET /api` — endpoint principal da API:
+- `GET /api` - endpoint principal da API. Resposta de exemplo:
 
 ```json
 { "message": "DashLab API", "version": "0.1.0" }
 ```
 
-Exemplo de chamada com `curl`:
+Exemplo de verificação rápida via `curl`:
 
 ```bash
 curl http://localhost:3001/health
 curl http://localhost:3001/api
 ```
 
-Você pode estender `BackEnd/src/routes/api.js` adicionando mais rotas REST (GET/POST/PUT/DELETE) e conectar a um banco de dados conforme necessário.
+Docker e implantação em containers
+---------------------------------
 
-## Executando FrontEnd e BackEnd ao mesmo tempo
+Este repositório inclui os arquivos necessários para construção e execução em containers:
 
-Opções rápidas para rodar ambos simultaneamente:
+- `docker-compose.yml` - orquestra os serviços do FrontEnd e do BackEnd para execução local ou em ambientes de homologação
+- `BackEnd/Dockerfile` - imagem do servidor Node.js
+- `FrontEnd/Dockerfile` - imagem da aplicação Vite/React
 
-- Em terminais separados (mínimo esforço):
-
-  - Terminal 1:
-
-  ```bash
-  cd BackEnd
-  npm run dev
-  ```
-
-  - Terminal 2:
-
-  ```bash
-  cd FrontEnd
-  npm run dev
-  ```
-
-- Usando `npx concurrently` (uma linha, sem alterar arquivos):
+Comando de implantação local em containers:
 
 ```bash
-npx concurrently "npm --prefix BackEnd run dev" "npm --prefix FrontEnd run dev"
+docker-compose up --build -d
 ```
 
-Esse comando executa os scripts `dev` nas duas pastas ao mesmo tempo e mostra ambos os logs no mesmo terminal.
+Infraestrutura como código (Terraform)
+-------------------------------------
 
-- Criar um `package.json` raiz com um script `dev` (opcional):
+A pasta `Terraform/` contém arquivos de exemplo para provisionamento de infraestrutura. Antes de executar em uma conta real, revise os arquivos `main.tf`, `variables.tf` e `outputs.tf` e confirme as credenciais e políticas de acesso.
 
-```json
-{
-  "name": "dashlab-root",
-  "private": true,
-  "scripts": {
-    "dev": "npx concurrently \"npm --prefix BackEnd run dev\" \"npm --prefix FrontEnd run dev\""
-  },
-  "devDependencies": {
-    "concurrently": "^8.0.0"
-  }
-}
-```
-
-Depois de criar o `package.json` raiz, rode:
+Fluxo recomendado:
 
 ```bash
-npm install
-npm run dev
+cd Terraform
+terraform init
+terraform plan
+terraform apply
 ```
 
-## Observações
+Práticas de segurança e operação
+--------------------------------
 
-- Ajuste variáveis de ambiente no BackEnd (`.env`) para configurar a `PORT` ou outras credenciais.
-- Se o FrontEnd precisa chamar a API, use a URL completa (ex.: `http://localhost:3001/api`) ou configure um proxy durante o desenvolvimento.
+- Não versionar credenciais ou `.env` em repositórios públicos
+- Utilize variáveis de ambiente ou serviços de secret management em ambientes de produção
+- Monitore logs e configure health checks para containers e serviços
 
-> Dica: para integração local rápida, defina `VITE_API_BASE` no `FrontEnd` e use `import.meta.env.VITE_API_BASE` no código React.
+Suporte e contatos
+-------------------
 
-## Rotas principais
-
-- `BackEnd/src/routes/health.js` — rota de verificação (health).
-- `BackEnd/src/routes/api.js` — rotas da API.
+Para dúvidas, reporte issues no repositório Git ou me contate (pedrolucasfonseca98@gmail.com).
