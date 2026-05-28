@@ -3,7 +3,7 @@
 Visão geral
 -----------------------
 
-DashLab é um repositório monolítico (monorepo) que reúne uma aplicação construída com Vite + React (`FrontEnd/`) e um servidor de API em Node.js/Express (`BackEnd/`). O projeto foi estruturado para aprender mais a fundo sobre desenvolvimento local, integração contínua e implantação em containers.
+DashLab é um repositório monolítico (monorepo) que reúne uma aplicação construída com Vite + React (`frontend/`) e um servidor de API em Node.js/Express (`backend/`). O projeto foi estruturado para aprender mais a fundo sobre desenvolvimento local, integração contínua e implantação em containers.
 
 Objetivos deste documento
 - Fornecer instruções claras sobre instalação, execução e implantação
@@ -13,14 +13,14 @@ Objetivos deste documento
 Arquitetura do repositório
 --------------------------
 
-- `BackEnd/` -> servidor Node.js, rotas e configurações de API
+- `backend/` -> servidor Node.js, rotas e configurações de API
   - `src/` -> código-fonte do servidor
   - `src/routes/` -> rotas expostas (`health.js`, `api.js`)
-- `FrontEnd/` -> aplicação React (Vite)
+- `frontend/` -> aplicação React (Vite)
   - `src/` -> código-fonte React
   - `public/` -> ativos públicos
   - `nginx.conf` -> configuração do Nginx como proxy reverso para o backend
-- `Terraform/` -> configuração de infraestrutura como código
+- `terraform/` -> configuração de infraestrutura como código
   - `main.tf` -> configuração do provider AWS
   - `variables.tf` -> variáveis do projeto
   - `outputs.tf` -> saídas após provisionamento
@@ -33,7 +33,7 @@ Pré-requisitos
 - Node.js (recomendado LTS recente)
 - npm ou yarn
 - Docker e Docker Compose (para execução em containers)
-- Terraform (apenas se for utilizar a pasta `Terraform/`)
+- Terraform (apenas se for utilizar a pasta `terraform/`)
 - AWS CLI configurado com usuário IAM com permissões adequadas
 
 Instalação e execução (desenvolvimento)
@@ -44,7 +44,7 @@ Siga estas etapas para executar os serviços localmente em modo de desenvolvimen
 1) BackEnd
 
 ```bash
-cd BackEnd
+cd backend
 npm install
 # Modo desenvolvimento (com nodemon)
 npm run dev
@@ -55,7 +55,7 @@ O servidor utiliza a variável `PORT` quando definida; por padrão, escuta na po
 2) FrontEnd
 
 ```bash
-cd FrontEnd
+cd frontend
 npm install
 # Executar Vite em modo de desenvolvimento
 npm run dev
@@ -71,8 +71,8 @@ Opções recomendadas para executar ambos os serviços simultaneamente:
 - Terminais separados (rápido e direto):
 
 ```bash
-cd BackEnd && npm run dev
-cd FrontEnd && npm run dev
+cd backend && npm run dev
+cd frontend && npm run dev
 ```
 
 - Docker Compose (recomendado para simular ambiente de containers):
@@ -89,10 +89,10 @@ Você pode optar por adicionar um `package.json` raiz que execute ambos os servi
 Variáveis de ambiente
 ---------------------
 
-O repositório inclui um arquivo de exemplo em `BackEnd/.env.example`. Recomenda-se copiar esse arquivo para `BackEnd/.env` e ajustar conforme necessário:
+O repositório inclui um arquivo de exemplo em `backend/.env.example`. Recomenda-se copiar esse arquivo para `backend/.env` e ajustar conforme necessário:
 
 ```bash
-cp BackEnd/.env.example BackEnd/.env
+cp backend/.env.example backend/.env
 ```
 
 Variáveis disponíveis:
@@ -136,9 +136,9 @@ Docker e implantação em containers
 Este repositório inclui os arquivos necessários para construção e execução em containers:
 
 - `docker-compose.yml` -> orquestra os serviços do FrontEnd e do BackEnd
-- `BackEnd/Dockerfile` -> imagem do servidor Node.js
-- `FrontEnd/Dockerfile` -> imagem da aplicação Vite/React com build multi-stage
-- `FrontEnd/nginx.conf` -> configura o Nginx para servir o frontend e redirecionar as chamadas `/health` e `/api` para o backend via proxy reverso
+- `backend/Dockerfile` -> imagem do servidor Node.js
+- `frontend/Dockerfile` -> imagem da aplicação Vite/React com build multi-stage
+- `frontend/nginx.conf` -> configura o Nginx para servir o frontend e redirecionar as chamadas `/health` e `/api` para o backend via proxy reverso
 
 Comando de implantação local em containers:
 
@@ -149,7 +149,7 @@ docker compose up --build -d
 Infraestrutura como código (Terraform)
 -------------------------------------
 
-A pasta `Terraform/` contém a configuração de infraestrutura provisionada na AWS. A infraestrutura atual inclui:
+A pasta `terraform/` contém a configuração de infraestrutura provisionada na AWS. A infraestrutura atual inclui:
 
 - **VPC** `10.0.0.0/16` com DNS habilitado
 - **Subnet pública A** `10.0.1.0/24` na zona `us-east-1a`
@@ -160,7 +160,7 @@ A pasta `Terraform/` contém a configuração de infraestrutura provisionada na 
 Fluxo recomendado:
 
 ```bash
-cd Terraform
+cd terraform
 terraform init
 terraform plan
 terraform apply
