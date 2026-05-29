@@ -5,14 +5,18 @@ services:
     ports:
     - "3001:3001"
     environment:
-    - PORT=3001
-    - NODE_ENV=production
+      - PORT=3001
+      - NODE_ENV=production
+      - DB_PASSWORD=${DB_PASSWORD}
 
   frontend:
     build: ./frontend
     container_name: dashlab-frontend
     ports:
     - "80:80"
+    environment:
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=3001
     depends_on:
       - backend
 
