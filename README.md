@@ -10,9 +10,33 @@ Objetivos deste documento
 - Descrever a arquitetura e os arquivos principais do repositório
 - Registrar práticas recomendadas para desenvolvimento e operação
 
+Stack utilizada
+--------------
+
+- Frontend: Vite + React
+- Backend: Node.js + Express
+- Containers: Docker + Docker Compose
+- Infraestrutura: Terraform (AWS)
+- Orquestração: Kubernetes (EKS) + Nginx (frontend)
+- CI/CD: GitHub Actions + ECR
+
+Arquitetura (diagrama simples)
+------------------------------
+
+```mermaid
+flowchart LR
+  user[Usuario] --> alb[ALB/Ingress]
+  alb --> fe[Frontend (Nginx + React)]
+  fe --> be[Backend (Node.js/Express)]
+  gh[GitHub Actions] --> ecr[(ECR)]
+  ecr --> eks[(EKS)]
+  alb --> eks
+```
+
 Arquitetura do repositório
 --------------------------
 
+- `.github/workflows/` -> pipelines de CI/CD e infra
 - `backend/` -> servidor Node.js, rotas e configurações de API
   - `src/` -> código-fonte do servidor
   - `src/routes/` -> rotas expostas (`health.js`, `api.js`)
@@ -26,6 +50,7 @@ Arquitetura do repositório
   - `outputs.tf` -> saídas após provisionamento
   - `vpc.tf` -> VPC, subnets, internet gateway e route table
 - `terraform-bootstrap/` -> bootstrap do backend remoto (S3 + DynamoDB)
+- `k8s/` -> manifests do Kubernetes (deployments, services, ingress)
 - `docker-compose.yml` -> composição para execução em containers
 
 Pré-requisitos
@@ -174,10 +199,10 @@ Com o backend criado, inicialize o Terraform principal usando o backend remoto:
 
 ```bash
 cd terraform
-terraform init -reconfigure
+terraform init
 ```
 
-Se houver um state local anterior, o `terraform init` pode oferecer migracao para o backend remoto.
+Se houver um state local anterior, o `terraform init` pode oferecer migração para o backend remoto.
 
 Fluxo recomendado:
 
@@ -194,6 +219,34 @@ Para destruir a infraestrutura:
 terraform destroy
 ```
 
+Provisionamento de infraestrutura (ordem recomendada)
+-----------------------------------------------------
+
+Siga esta ordem para evitar falhas no state remoto e garantir que o cluster esteja pronto:
+
+1) Bootstrap do backend remoto (S3 + DynamoDB):
+
+```bash
+cd terraform-bootstrap
+terraform init
+terraform apply
+```
+
+2) Provisionamento principal (Terraform):
+
+```bash
+cd terraform
+terraform init
+terraform apply
+```
+
+Se houver state local, confirme a migração quando o `terraform init` solicitar.
+
+3) Aplicar configurações adicionais via GitHub Actions:
+
+- Execute o workflow [infra.yml](.github/workflows/infra.yml) em Actions (workflow_dispatch).
+- Este workflow instala o AWS Load Balancer Controller no cluster.
+
 Kubernetes (k8s)
 ----------------
 
@@ -209,9 +262,28 @@ kubectl apply -f k8s/frontend-deployment.yml
 Para verificar o status:
 
 ```bash
-kubectl get pods -n DashLab
-kubectl get svc -n DashLab
+kubectl get pods -n dashlab
+kubectl get svc -n dashlab
 ```
+
+Deploy (CI/CD)
+-------------
+
+O deploy é feito automaticamente pelo workflow [ci-cd.yml](.github/workflows/ci-cd.yml):
+
+- Build das imagens do backend e frontend
+- Push para o ECR
+- Atualização dos manifests em k8s com as tags do commit
+- Aplicação no cluster EKS e verificação de rollout
+
+Secrets necessários no GitHub
+-----------------------------
+
+Configure em Settings -> Secrets -> Actions:
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_ACCOUNT_ID`
 
 Práticas de segurança e operação
 --------------------------------
@@ -221,6 +293,23 @@ Práticas de segurança e operação
 - Utilize variáveis de ambiente ou serviços de secret management em produção
 - Monitore logs e configure health checks para containers e serviços
 - Destrua a infraestrutura AWS quando não estiver em uso para evitar cobranças
+
+Antes do terraform destroy
+--------------------------
+
+Se o `terraform destroy` falhar por causa de imagens no ECR, esvazie os repositórios:
+
+```bash
+aws ecr batch-delete-image \
+  --repository-name dashlab-backend \
+  --image-ids "$(aws ecr list-images --repository-name dashlab-backend \
+  --query 'imageIds[*]' --output json)" --region us-east-1
+
+aws ecr batch-delete-image \
+  --repository-name dashlab-frontend \
+  --image-ids "$(aws ecr list-images --repository-name dashlab-frontend \
+  --query 'imageIds[*]' --output json)" --region us-east-1
+```
 
 Suporte e contatos
 -------------------
