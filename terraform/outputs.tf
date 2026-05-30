@@ -13,3 +13,12 @@ output "ecr_backend_url" {
 output "ecr_frontend_url" {
     value = aws_ecr_repository.frontend.repository_url
 }
+
+output "cluster_name" {
+    value = aws_eks_cluster.main.name
+}
+
+output "cluster_endpoint" {
+    value     = aws_eks_cluster.main.endpoint
+    sensitive = true
+}
