@@ -25,10 +25,10 @@ Arquitetura (diagrama simples)
 
 ```mermaid
 flowchart LR
-  user[Usuario] --> alb[ALB/Ingress]
-  alb --> fe[Frontend (Nginx + React)]
-  fe --> be[Backend (Node.js/Express)]
-  gh[GitHub Actions] --> ecr[(ECR)]
+  user[Usuário] --> alb["ALB/Ingress"]
+  alb --> fe["Frontend (Nginx + React)"]
+  fe --> be["Backend (Node.js/Express)"]
+  gh["GitHub Actions"] --> ecr[(ECR)]
   ecr --> eks[(EKS)]
   alb --> eks
 ```
