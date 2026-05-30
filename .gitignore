@@ -24,6 +24,12 @@ terraform/.terraform/
 terraform/terraform.tfstate
 terraform/terraform.tfstate.*
 
+# Terraform-bootstrap
+
+terraform-bootstrap/.terraform/
+terraform-bootstrap/terraform.tfstate
+terraform-bootstrap/terraform.tfstate.*
+
 # OS / Editor
 .DS_Store
 Thumbs.db
