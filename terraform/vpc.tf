@@ -17,6 +17,8 @@ resource "aws_subnet" "public_a" {
 
     tags = {
         Name = "${var.project}-subnet-public-a"
+        "kubernetes.io/role/elb" = "1"
+        "kubernetes.io/cluster/${var.project}-cluster" = "shared"
         Project = var.project
     }
 }
@@ -29,9 +31,12 @@ resource "aws_subnet" "public_b" {
 
     tags = {
         Name = "${var.project}-subnet-public-b"
+        "kubernetes.io/role/elb" = "1"
+        "kubernetes.io/cluster/${var.project}-cluster" = "shared"
         Project = var.project
     }
 }
+
 
 resource "aws_internet_gateway" "main" {
     vpc_id = aws_vpc.main.id
@@ -55,6 +60,7 @@ resource "aws_route_table" "public" {
         Project = var.project
     }
 }
+
 
 resource "aws_route_table_association" "public_a" {
     subnet_id = aws_subnet.public_a.id
