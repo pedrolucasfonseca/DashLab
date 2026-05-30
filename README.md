@@ -25,6 +25,7 @@ Arquitetura do repositório
   - `variables.tf` -> variáveis do projeto
   - `outputs.tf` -> saídas após provisionamento
   - `vpc.tf` -> VPC, subnets, internet gateway e route table
+- `terraform-bootstrap/` -> bootstrap do backend remoto (S3 + DynamoDB)
 - `docker-compose.yml` -> composição para execução em containers
 
 Pré-requisitos
@@ -157,6 +158,27 @@ A pasta `terraform/` contém a configuração de infraestrutura provisionada na 
 - **Internet Gateway** para acesso público
 - **Route Table** com roteamento para a internet
 
+Backend remoto (S3 + DynamoDB)
+------------------------------
+
+Antes de rodar o Terraform principal, crie o bucket do state e a tabela de lock com o bootstrap:
+
+```bash
+cd terraform-bootstrap
+terraform init
+terraform plan
+terraform apply
+```
+
+Com o backend criado, inicialize o Terraform principal usando o backend remoto:
+
+```bash
+cd terraform
+terraform init -reconfigure
+```
+
+Se houver um state local anterior, o `terraform init` pode oferecer migracao para o backend remoto.
+
 Fluxo recomendado:
 
 ```bash
@@ -172,10 +194,30 @@ Para destruir a infraestrutura:
 terraform destroy
 ```
 
+Kubernetes (k8s)
+----------------
+
+Com o cluster EKS criado, conecte o `kubectl` e aplique os manifests:
+
+```bash
+aws eks update-kubeconfig --region us-east-1 --name <nome-do-cluster>
+kubectl apply -f k8s/namespace.yml
+kubectl apply -f k8s/backend-deployment.yml
+kubectl apply -f k8s/frontend-deployment.yml
+```
+
+Para verificar o status:
+
+```bash
+kubectl get pods -n DashLab
+kubectl get svc -n DashLab
+```
+
 Práticas de segurança e operação
 --------------------------------
 
 - Não versionar credenciais ou `.env` em repositórios públicos
+- Nao versionar `terraform.tfstate` e `terraform.tfstate.backup` (use o backend remoto)
 - Utilize variáveis de ambiente ou serviços de secret management em produção
 - Monitore logs e configure health checks para containers e serviços
 - Destrua a infraestrutura AWS quando não estiver em uso para evitar cobranças
