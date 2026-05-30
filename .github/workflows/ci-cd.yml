@@ -65,6 +65,7 @@ jobs:
         run: |
           sed -i "s|BACKEND_IMAGE|$ECR_BACKEND:${{ github.sha }}|g" k8s/backend-deployment.yml
           sed -i "s|FRONTEND_IMAGE|$ECR_FRONTEND:${{ github.sha }}|g" k8s/frontend-deployment.yml
+          kubectl apply -f k9s/namespace.yml
           kubectl apply -f k8s/
 
       - name: Rollout Verify
