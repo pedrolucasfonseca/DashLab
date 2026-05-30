@@ -25,10 +25,10 @@ terraform/terraform.tfstate
 terraform/terraform.tfstate.*
 
 # Terraform-bootstrap
-
 terraform-bootstrap/.terraform/
+terraform-bootstrap/.terraform.lock.hcl
 terraform-bootstrap/terraform.tfstate
-terraform-bootstrap/terraform.tfstate.*
+terraform-bootstrap/terraform.tfstate.backup
 
 # OS / Editor
 .DS_Store

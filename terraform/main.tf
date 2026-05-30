@@ -3,7 +3,7 @@ terraform {
         bucket = "dashlab-terraform-state"
         key = "prod/terraform.tfstate"
         region = "us-east-1"
-        dynamodb_table = "dashlab-tf-lock"
+        use_lockfile = true
         encrypt = true
     }
 
