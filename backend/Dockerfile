@@ -22,7 +22,7 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/src ./src/
 
-RUN addgroup -S addgroup && adduser && -S appuser -G appgroup
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 USER appuser
 
