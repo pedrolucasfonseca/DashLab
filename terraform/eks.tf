@@ -14,6 +14,10 @@ resource "aws_eks_cluster" "main" {
     Name = "${var.project}-cluster"
     Project = var.project
   }
+
+  access_config {
+  authentication_mode = "API_AND_CONFIG_MAP"
+  }
 }
 
 resource "aws_eks_node_group" "main" {
