@@ -22,7 +22,6 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role = aws_iam_role.eks_cluster.name
 }
 
-# Role para os nós do EKS
 resource "aws_iam_role" "eks_nodes" {
   name = "${var.project}-eks-nodes-role"
 
@@ -123,4 +122,91 @@ resource "aws_iam_role_policy" "github_actions" {
       }
     ]
   })
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["9e99a48a9960b14926bb7f3b02e22da2b0ab7280"]
+
+  tags = { Project = var.project }
+}
+
+resource "aws_iam_role" "lb_controller" {
+  name = "${var.project}-lb-controller"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.eks.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:kube-system:aws-load-balancer-controller"
+          "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:aud" = "sts.amazonaws.com"
+        }
+      }
+    }]
+  })
+
+  tags = { Project = var.project }
+}
+
+resource "aws_iam_role_policy" "lb_controller" {
+  name = "${var.project}-lb-controller-policy"
+  role = aws_iam_role.lb_controller.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:CreateServiceLinkedRole",
+          "ec2:CreateSecurityGroup",
+          "ec2:DeleteSecurityGroup",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeInstances",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeInternetGateways",
+          "ec2:DescribeAvailabilityZones",
+          "ec2:DescribeTags",
+          "ec2:CreateTags",
+          "ec2:DeleteTags",
+          "ec2:DescribeAccountAttributes",
+          "ec2:DescribeAddresses",
+          "ec2:DescribeNetworkInterfaces",
+          "elasticloadbalancing:*",
+          "cognito-idp:DescribeUserPoolClient",
+          "acm:ListCertificates",
+          "acm:DescribeCertificate",
+          "iam:ListServerCertificates",
+          "iam:GetServerCertificate",
+          "waf-regional:GetWebACL",
+          "waf-regional:GetWebACLForResource",
+          "waf-regional:AssociateWebACL",
+          "waf-regional:DisassociateWebACL",
+          "wafv2:GetWebACL",
+          "wafv2:GetWebACLForResource",
+          "wafv2:AssociateWebACL",
+          "wafv2:DisassociateWebACL",
+          "shield:DescribeProtection",
+          "shield:GetSubscriptionState"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+output "lb_controller_role_arn" {
+  value = aws_iam_role.lb_controller.arn
 }
