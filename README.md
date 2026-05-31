@@ -126,6 +126,16 @@ Variáveis disponíveis:
 - `PORT` -> porta em que o servidor escuta (padrão: 3001)
 - `NODE_ENV` -> ambiente de execução (`development` ou `production`)
 
+Para o proxy do Vite, use o arquivo `frontend/.env.example` como base e copie para `frontend/.env`:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+Variáveis disponíveis:
+
+- `VITE_API_BASE_URL` -> URL base do backend usada pelo proxy do Vite (padrão: http://localhost:3001)
+
 APIs e contratos expostos
 ------------------------
 
