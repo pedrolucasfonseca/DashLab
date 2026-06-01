@@ -3,13 +3,13 @@ services:
     build:
       context: ./backend
       dockerfile: dockerfile
-      target: builder
+      target: production
     container_name: dashlab-backend
     ports:
     - "3001:3001"
     environment:
       - PORT=3001
-      - NODE_ENV=development
+      - NODE_ENV=production
       - DB_PASSWORD=${DB_PASSWORD}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
@@ -29,4 +29,9 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-
+    healthcheck:
+      test: ["CMD", "wget", "-f", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
