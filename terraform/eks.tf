@@ -4,8 +4,11 @@ resource "aws_eks_cluster" "main" {
   version = "1.32"
 
   vpc_config {
-    subnet_ids = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+    subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id]
     security_group_ids = [aws_security_group.eks_cluster.id]
+    endpoint_private_access = true
+    endpoint_public_access = true
+    public_access_cidrs = [var.allowed_cidr]
   }
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]

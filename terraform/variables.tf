@@ -5,3 +5,7 @@ variable "region" {
 variable "project" {
     default = "dashlab"
 }
+
+variable "allowed_cidr" {
+  type = string
+}
