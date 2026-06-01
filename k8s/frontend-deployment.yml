@@ -32,8 +32,8 @@ spec:
               value: "3001"
           readinessProbe:
             httpGet:
-              path: /health
-              port: 3001
+              path: /
+              port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:

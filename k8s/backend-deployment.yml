@@ -33,7 +33,7 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                   secretKeyRef:
-                      name: backend-credentials
+                      name: backend-secret
                       key: DB_PASSWORD
                       optional: true
           readinessProbe:
