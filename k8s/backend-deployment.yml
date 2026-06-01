@@ -30,6 +30,12 @@ spec:
               value: "3001"
             - name: NODE_ENV
               value: "production"
+            - name: DB_PASSWORD
+              valueFrom:
+                  secretKeyRef:
+                      name: backend-credentials
+                      key: DB_PASSWORD
+                      optional: true
           readinessProbe:
             httpGet:
               path: /health

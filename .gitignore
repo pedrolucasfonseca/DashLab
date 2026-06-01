@@ -19,10 +19,15 @@ build/
 # Logs
 *.log
 
+# Kubernetes
+
+k8s/backend-secret.yml
+
 # Terraform
 terraform/.terraform/
 terraform/terraform.tfstate
 terraform/terraform.tfstate.*
+terraform/terraform.tfvars
 
 # Terraform-bootstrap
 terraform-bootstrap/.terraform/
