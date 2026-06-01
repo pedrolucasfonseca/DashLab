@@ -1,0 +1,6 @@
+- name: Create K8s secret
+  run: |
+    kubectl create secret generic backend-secret \
+      --from-literal=DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+      --namespace=dashlab \
+      --dry-run=client -o yaml | kubectl apply -f -
