@@ -1,220 +1,209 @@
 # DashLab
 
-Visão geral
------------------------
+> Projeto de estudo de infraestrutura AWS com foco em DevOps e DevSecOps — EKS, Terraform, Kubernetes e CI/CD com GitHub Actions.
 
-DashLab é um repositório monolítico (monorepo) que reúne uma aplicação construída com Vite + React (`frontend/`) e um servidor de API em Node.js/Express (`backend/`). O projeto foi estruturado para aprender mais a fundo sobre desenvolvimento local, integração contínua e implantação em containers.
+---
 
-Objetivos deste documento
-- Fornecer instruções claras sobre instalação, execução e implantação
-- Descrever a arquitetura e os arquivos principais do repositório
-- Registrar práticas recomendadas para desenvolvimento e operação
+## Índice
 
-Stack utilizada
---------------
+- [Visão Geral](#visão-geral)
+- [Stack](#stack)
+- [Arquitetura](#arquitetura)
+- [Estrutura do Repositório](#estrutura-do-repositório)
+- [Execução Local](#execução-local)
+- [Variáveis de Ambiente](#variáveis-de-ambiente)
+- [API](#api)
+- [Infraestrutura](#infraestrutura)
+- [Kubernetes](#kubernetes)
+- [CI/CD](#cicd)
+- [Segurança](#segurança)
 
-- Frontend: Vite + React
-- Backend: Node.js + Express
-- Containers: Docker + Docker Compose
-- Infraestrutura: Terraform (AWS)
-- Orquestração: Kubernetes (EKS) + Nginx (frontend)
-- CI/CD: GitHub Actions + ECR
+---
 
-Arquitetura (diagrama simples)
-------------------------------
+## Visão Geral
+
+DashLab é um monorepo com frontend React (Vite) e backend Node.js/Express, estruturado para demonstrar boas práticas de infraestrutura em AWS,desde o provisionamento com Terraform até o deploy automatizado via EKS via GitHub Actions com autenticação OIDC.
+
+O projeto cobre os principais pilares de DevOps e DevSecOps:
+
+- **Infraestrutura como código:** VPC, EKS, ECR, IAM e Security Groups provisionados inteiramente com Terraform
+- **Containers seguros:** multi-stage build, usuário não-root, stage `production` no compose
+- **Kubernetes production-ready:** Readiness/liveness probes, resource limits, Secrets para credenciais
+- **Pipeline seguro:** OIDC sem chaves estáticas, testes antes do build, imagens imutáveis no ECR
+- **Rede segura:** Nodes em subnets privadas, endpoint EKS restrito por IP, ingress explícito nos Security Groups
+
+---
+
+## Stack
+
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | React + Vite |
+| Backend | Node.js + Express |
+| Containers | Docker + Docker Compose |
+| Orquestração | Kubernetes (AWS EKS) |
+| Infraestrutura | Terraform |
+| Registry | Amazon ECR |
+| CI/CD | GitHub Actions |
+| Autenticação AWS | OIDC (sem chaves estáticas) |
+
+---
+
+## Arquitetura
 
 ```mermaid
 flowchart LR
-  user[Usuário] --> alb["ALB/Ingress"]
-  alb --> fe["Frontend (Nginx + React)"]
-  fe --> be["Backend (Node.js/Express)"]
-  gh["GitHub Actions"] --> ecr[(ECR)]
-  ecr --> eks[(EKS)]
-  alb --> eks
+  user[Usuário] --> alb[ALB\nSubnet pública]
+  alb --> fe[Frontend\nNginx + React\nSubnet privada]
+  alb --> be[Backend\nNode.js\nSubnet privada]
+  gh[GitHub Actions\nOIDC] --> ecr[(ECR)]
+  ecr --> eks[(EKS\nSubnet privada)]
+  eks --> nat[NAT Gateway] --> internet[Internet]
 ```
 
-Arquitetura do repositório
---------------------------
+### Decisões de arquitetura
 
-- `.github/workflows/` -> pipelines de CI/CD e infra
-- `backend/` -> servidor Node.js, rotas e configurações de API
-  - `src/` -> código-fonte do servidor
-  - `src/routes/` -> rotas expostas (`health.js`, `api.js`)
-- `frontend/` -> aplicação React (Vite)
-  - `src/` -> código-fonte React
-  - `public/` -> ativos públicos
-  - `nginx.conf` -> configuração do Nginx como proxy reverso para o backend
-- `terraform/` -> configuração de infraestrutura como código
-  - `main.tf` -> configuração do provider AWS
-  - `variables.tf` -> variáveis do projeto
-  - `outputs.tf` -> saídas após provisionamento
-  - `vpc.tf` -> VPC, subnets, internet gateway e route table
-- `terraform-bootstrap/` -> bootstrap do backend remoto (S3 + DynamoDB)
-- `k8s/` -> manifests do Kubernetes (deployments, services, ingress)
-- `docker-compose.yml` -> composição para execução em containers
+| Decisão | Justificativa |
+|---------|--------------|
+| Nodes EKS em subnets privadas | Nodes sem IP público, tráfego de saída via NAT Gateway |
+| ALB como único ponto de entrada | Frontend e backend acessíveis apenas via Ingress Controller |
+| OIDC no CI/CD | GitHub Actions assume role IAM diretamente, sem `AWS_ACCESS_KEY_ID` |
+| ECR com `IMMUTABLE` | Tags de imagem não podem ser sobrescritas, cada deploy é rastreável |
+| Endpoint EKS restrito por IP | Superfície de ataque reduzida, só seu IP acessa o control plane |
+| `DB_PASSWORD` via Kubernetes Secret | Credenciais nunca expostas em manifests ou variáveis de ambiente literais |
 
-Pré-requisitos
---------------
+---
 
-- Node.js (recomendado LTS recente)
-- npm ou yarn
-- Docker e Docker Compose (para execução em containers)
-- Terraform (apenas se for utilizar a pasta `terraform/`)
-- AWS CLI configurado com usuário IAM com permissões adequadas
+## Estrutura do Repositório
 
-Instalação e execução (desenvolvimento)
---------------------------------------
-
-Siga estas etapas para executar os serviços localmente em modo de desenvolvimento.
-
-1) BackEnd
-
-```bash
-cd backend
-npm install
-# Modo desenvolvimento (com nodemon)
-npm run dev
+```
+DashLab/
+├── .github/
+│   └── workflows/
+│       ├── ci-cd.yml # build, push ECR e deploy EKS
+│       └── infra.yml # instala AWS Load Balancer Controller
+├── backend/
+│   ├── src/
+│   │   ├── routes/
+│   │   │   ├── api.js # GET /api
+│   │   │   └── health.js # GET /health
+│   │   ├── app.js # configuração Express
+│   │   └── index.js # entrada do servidor
+│   ├── Dockerfile # multi-stage: builder → production
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   └── App.jsx # dashboard de monitoramento
+│   ├── Dockerfile # multi-stage: build → nginx
+│   └── nginx.conf # proxy reverso para o backend
+├── k8s/
+│   ├── namespace.yml
+│   ├── backend-deployment.yml
+│   ├── backend-secret.yml # DB_PASSWORD (no .gitignore)
+│   ├── frontend-deployment.yml
+│   └── ingress.yml
+├── terraform/
+│   ├── main.tf # provider e backend remoto
+│   ├── vpc.tf # VPC, subnets, NAT Gateway
+│   ├── eks.tf # cluster e node group
+│   ├── ecr.tf # repositórios + lifecycle policy
+│   ├── iam.tf # roles e OIDC
+│   ├── security-groups.tf # SGs do cluster e nodes
+│   ├── variables.tf
+│   └── outputs.tf
+├── terraform-bootstrap/ # S3 + DynamoDB para state remoto
+└── docker-compose.yml
 ```
 
-O servidor utiliza a variável `PORT` quando definida; por padrão, escuta na porta `3001`.
+---
 
-2) FrontEnd
+## Execução Local
 
-```bash
-cd frontend
-npm install
-# Executar Vite em modo de desenvolvimento
-npm run dev
-```
+### Pré-requisitos
 
-O Vite exibirá a URL de desenvolvimento no terminal (por exemplo, `http://localhost:5173`).
+- Node.js LTS
+- Docker e Docker Compose
+- Terraform
+- AWS CLI
 
-Execução conjunta (desenvolvimento)
-----------------------------------
-
-Opções recomendadas para executar ambos os serviços simultaneamente:
-
-- Terminais separados (rápido e direto):
+### Com Docker Compose (recomendado)
 
 ```bash
-cd backend && npm run dev
-cd frontend && npm run dev
-```
-
-- Docker Compose (recomendado para simular ambiente de containers):
-
-```bash
+cp backend/.env.example backend/.env
 docker compose up --build
 ```
 
-Automação de scripts
----------------------
+O compose usa o stage `production` do Dockerfile, mesmo ambiente que roda no EKS.
 
-Você pode optar por adicionar um `package.json` raiz que execute ambos os serviços com `concurrently` para conveniência em desenvolvimento.
+### Sem Docker
 
-Variáveis de ambiente
----------------------
+```bash
+# backend
+cd backend && npm install && npm run dev
 
-O repositório inclui um arquivo de exemplo em `backend/.env.example`. Recomenda-se copiar esse arquivo para `backend/.env` e ajustar conforme necessário:
+# frontend (outro terminal)
+cd frontend && npm install && npm run dev
+```
+
+---
+
+## Variáveis de Ambiente
+
+Copie e ajuste o arquivo de exemplo:
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-Variáveis disponíveis:
+| Variável | Descrição | Padrão |
+|----------|-----------|--------|
+| `PORT` | Porta do servidor | `3001` |
+| `NODE_ENV` | Ambiente de execução | `development` |
+| `DB_PASSWORD` | Senha do banco (via Secret em produção) | - |
 
-- `PORT` -> porta em que o servidor escuta (padrão: 3001)
-- `NODE_ENV` -> ambiente de execução (`development` ou `production`)
+---
 
-Para o proxy do Vite, use o arquivo `frontend/.env.example` como base e copie para `frontend/.env`:
+## API
 
-```bash
-cp frontend/.env.example frontend/.env
-```
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `GET` | `/health` | Status do servidor |
+| `GET` | `/api` | Informações da API |
 
-Variáveis disponíveis:
-
-- `VITE_API_BASE_URL` -> URL base do backend usada pelo proxy do Vite (padrão: http://localhost:3001)
-
-APIs e contratos expostos
-------------------------
-
-Endpoints principais (exposição pública de desenvolvimento):
-
-- `GET /health` -> verificação de integridade. Resposta de exemplo:
-
-```json
-{ 
-"status": "ok",
-"timestamp": "2026-05-26T12:34:56.789Z"
-}
-```
-
-- `GET /api` -> endpoint principal da API. Resposta de exemplo:
-
-```json
-{
-"message": "DashLab API", 
-"version": "0.1.0"
-}
-```
-
-Exemplo de verificação rápida via `curl`:
+**Exemplos:**
 
 ```bash
 curl http://localhost:3001/health
+# { "status": "ok", "timestamp": "2026-01-01T00:00:00.000Z" }
+
 curl http://localhost:3001/api
+# { "message": "DashLab API", "version": "0.3.0" }
 ```
 
-Docker e implantação em containers
----------------------------------
+---
 
-Este repositório inclui os arquivos necessários para construção e execução em containers:
+## Infraestrutura
 
-- `docker-compose.yml` -> orquestra os serviços do FrontEnd e do BackEnd
-- `backend/Dockerfile` -> imagem do servidor Node.js
-- `frontend/Dockerfile` -> imagem da aplicação Vite/React com build multi-stage
-- `frontend/nginx.conf` -> configura o Nginx para servir o frontend e redirecionar as chamadas `/health` e `/api` para o backend via proxy reverso
+### Configuração inicial
 
-Comando de implantação local em containers:
+Crie o arquivo `terraform/terraform.tfvars` (já está no `.gitignore`):
 
-```bash
-docker compose up --build -d
+```hcl
+region = "us-east-1"
+project = "dashlab"
+allowed_cidr = "SEU_IP/32" # curl -4 ifconfig.me
 ```
 
-Infraestrutura como código (Terraform)
--------------------------------------
+### Provisionamento
 
-A pasta `terraform/` contém a configuração de infraestrutura provisionada na AWS. A infraestrutura atual inclui:
-
-- **VPC** `10.0.0.0/16` com DNS habilitado
-- **Subnet pública A** `10.0.1.0/24` na zona `us-east-1a`
-- **Subnet pública B** `10.0.2.0/24` na zona `us-east-1b`
-- **Internet Gateway** para acesso público
-- **Route Table** com roteamento para a internet
-
-Backend remoto (S3 + DynamoDB)
-------------------------------
-
-Antes de rodar o Terraform principal, crie o bucket do state e a tabela de lock com o bootstrap:
+**1. Bootstrap do state remoto:**
 
 ```bash
 cd terraform-bootstrap
-terraform init
-terraform plan
-terraform apply
+terraform init && terraform apply
 ```
 
-Com o backend criado, inicialize o Terraform principal usando o backend remoto:
-
-```bash
-cd terraform
-terraform init
-```
-
-Se houver um state local anterior, o `terraform init` pode oferecer migração para o backend remoto.
-
-Fluxo recomendado:
+**2. Infraestrutura principal:**
 
 ```bash
 cd terraform
@@ -223,105 +212,93 @@ terraform plan
 terraform apply
 ```
 
-Para destruir a infraestrutura:
+**3. AWS Load Balancer Controller:**
+
+Execute o workflow `infra.yml` manualmente via GitHub Actions (`workflow_dispatch`).
+
+### Destruição
 
 ```bash
 terraform destroy
 ```
 
-Provisionamento de infraestrutura (ordem recomendada)
------------------------------------------------------
-
-Siga esta ordem para evitar falhas no state remoto e garantir que o cluster esteja pronto:
-
-1) Bootstrap do backend remoto (S3 + DynamoDB):
+> Se o destroy falhar por imagens no ECR, esvazie os repositórios primeiro:
 
 ```bash
-cd terraform-bootstrap
-terraform init
-terraform apply
+for repo in dashlab-backend dashlab-frontend; do
+  aws ecr batch-delete-image \
+    --repository-name $repo \
+    --image-ids "$(aws ecr list-images --repository-name $repo \
+    --query 'imageIds[*]' --output json)" \
+    --region us-east-1
+done
 ```
 
-2) Provisionamento principal (Terraform):
+---
+
+## Kubernetes
 
 ```bash
-cd terraform
-terraform init
-terraform apply
-```
+# conectar ao cluster
+aws eks update-kubeconfig --region us-east-1 --name dashlab-cluster
 
-Se houver state local, confirme a migração quando o `terraform init` solicitar.
-
-3) Aplicar configurações adicionais via GitHub Actions:
-
-- Execute o workflow [infra.yml](.github/workflows/infra.yml) em Actions (workflow_dispatch).
-- Este workflow instala o AWS Load Balancer Controller no cluster.
-
-Kubernetes (k8s)
-----------------
-
-Com o cluster EKS criado, conecte o `kubectl` e aplique os manifests:
-
-```bash
-aws eks update-kubeconfig --region us-east-1 --name <nome-do-cluster>
+# aplicar manifests
 kubectl apply -f k8s/namespace.yml
-kubectl apply -f k8s/backend-deployment.yml
-kubectl apply -f k8s/frontend-deployment.yml
-```
+kubectl apply -f k8s/backend-secret.yml
+kubectl apply -f k8s/
 
-Para verificar o status:
-
-```bash
+# verificar status
 kubectl get pods -n dashlab
 kubectl get svc -n dashlab
 ```
 
-Deploy (CI/CD)
--------------
+---
 
-O deploy é feito automaticamente pelo workflow [ci-cd.yml](.github/workflows/ci-cd.yml):
+## CI/CD
 
-- Build das imagens do backend e frontend
-- Push para o ECR
-- Atualização dos manifests em k8s com as tags do commit
-- Aplicação no cluster EKS e verificação de rollout
+O pipeline executa automaticamente a cada push na branch `main`:
 
-Secrets necessários no GitHub
------------------------------
-
-Configure em Settings -> Secrets -> Actions:
-
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_ACCOUNT_ID`
-
-Práticas de segurança e operação
---------------------------------
-
-- Não versionar credenciais ou `.env` em repositórios públicos
-- Nao versionar `terraform.tfstate` e `terraform.tfstate.backup` (use o backend remoto)
-- Utilize variáveis de ambiente ou serviços de secret management em produção
-- Monitore logs e configure health checks para containers e serviços
-- Destrua a infraestrutura AWS quando não estiver em uso para evitar cobranças
-
-Antes do terraform destroy
---------------------------
-
-Se o `terraform destroy` falhar por causa de imagens no ECR, esvazie os repositórios:
-
-```bash
-aws ecr batch-delete-image \
-  --repository-name dashlab-backend \
-  --image-ids "$(aws ecr list-images --repository-name dashlab-backend \
-  --query 'imageIds[*]' --output json)" --region us-east-1
-
-aws ecr batch-delete-image \
-  --repository-name dashlab-frontend \
-  --image-ids "$(aws ecr list-images --repository-name dashlab-frontend \
-  --query 'imageIds[*]' --output json)" --region us-east-1
+```
+push → test → build & push ECR → deploy EKS → rollout verify
 ```
 
-Suporte e contatos
--------------------
+| Etapa | Descrição |
+|-------|-----------|
+| `test` | Executa `npm test` e bloqueia a pipeline se falhar |
+| `build-and-push` | Build das imagens com tag do SHA + `:latest`, push pro ECR |
+| `deploy` | Substitui as imagens nos manifests K8s e aplica no cluster |
+| `rollout verify` | Confirma que os deployments subiram com sucesso |
 
-Para dúvidas, reporte issues no repositório Git ou entre em contato: [pedrolucasfonseca98@gmail.com](mailto:pedrolucasfonseca98@gmail.com)
+### Secret necessário no GitHub
+
+```
+Settings → Secrets → Actions → New repository secret
+```
+
+| Secret | Valor |
+|--------|-------|
+| `AWS_ACCOUNT_ID` | ID da conta AWS (12 dígitos) |
+
+> `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` **não são necessários**. A autenticação é feita via OIDC, aonde o GitHub Actions assume a role `dashlab-github-actions` diretamente.
+
+---
+
+## Segurança
+
+| Prática | Implementação |
+|---------|--------------|
+| Sem chaves estáticas | OIDC no CI/CD, role assumida via token temporário |
+| Credenciais protegidas | `.env` e `terraform.tfvars` no `.gitignore` |
+| State remoto seguro | `terraform.tfstate` no S3 com lock DynamoDB, nunca versionado |
+| Imagens imutáveis | ECR com `IMMUTABLE`, tags não podem ser sobrescritas |
+| Containers não-root | Dockerfile com usuário `appuser` no stage production |
+| Secrets no K8s | `DB_PASSWORD` via `secretKeyRef`, nunca em manifest literal |
+| Rede isolada | Nodes em subnets privadas, endpoint EKS restrito por IP |
+
+---
+
+> Destrua a infraestrutura AWS quando não estiver em uso para evitar cobranças desnecessárias.
+
+---
+
+Para dúvidas, reporte issues no repositório ou entre em contato: [pedrolucasfonseca98@gmail.com](mailto:pedrolucasfonseca98@gmail.com)
