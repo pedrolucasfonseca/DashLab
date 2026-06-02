@@ -5,6 +5,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Test files
+
+backend/coverage
+
 # Env files
 .env
 .env.*.local
@@ -20,7 +24,6 @@ build/
 *.log
 
 # Kubernetes
-
 k8s/backend-secret.yml
 
 # Terraform
