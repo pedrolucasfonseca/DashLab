@@ -78,8 +78,8 @@ resource "aws_iam_role" "github_actions" {
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
-        StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:pedrolucasfonseca/DashLab:*"
+        StringEquals = {
+          "token.actions.githubusercontent.com:sub" = "repo:pedrolucasfonseca/DashLab:ref:refs/heads/main"
         }
       }
     }]
@@ -100,7 +100,13 @@ resource "aws_iam_role_policy" "github_actions" {
       {
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
@@ -109,7 +115,10 @@ resource "aws_iam_role_policy" "github_actions" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload"
         ]
-        Resource = "*"
+        Resource = [
+          aws_ecr_repository.backend.arn,
+          aws_ecr_repository.frontend.arn
+        ]
       },
       {
         Effect = "Allow"

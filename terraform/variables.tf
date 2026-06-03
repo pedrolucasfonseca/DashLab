@@ -9,3 +9,8 @@ variable "project" {
 variable "allowed_cidr" {
   type = string
 }
+
+variable "aws_account_id" {
+  type      = string
+  sensitive = true
+}
