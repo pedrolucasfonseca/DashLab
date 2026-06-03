@@ -10,13 +10,17 @@ pnpm-debug.log
 
 .env
 .env.*
+.npmrc
+.pnpmrc
+.yarnrc
+.yarnrc.yml
 
 Dockerfile
 .dockerignore
 
 README.md
 
-.dist
+dist
 build
 coverage
 

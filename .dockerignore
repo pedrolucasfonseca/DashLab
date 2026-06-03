@@ -1,0 +1,17 @@
+node_modules
+dist
+build
+coverage
+
+.git
+.gitignore
+.vscode
+
+.env
+.env.*
+.npmrc
+.pnpmrc
+.yarnrc
+.yarnrc.yml
+
+*.log
