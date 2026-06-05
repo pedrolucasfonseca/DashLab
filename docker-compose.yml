@@ -6,11 +6,18 @@ services:
       target: production
     container_name: dashlab-backend
     ports:
-    - "3001:3001"
+      - "3001:3001"
     environment:
       - PORT=3001
       - NODE_ENV=production
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_NAME=${POSTGRES_DB}
       - DB_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
       interval: 10s
@@ -18,11 +25,29 @@ services:
       retries: 3
       start_period: 10s
 
+  db:
+    image: postgres:16
+    container_name: dashlab_db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   frontend:
     build: ./frontend
     container_name: dashlab-frontend
     ports:
-    - "80:80"
+      - "80:80"
     environment:
       - BACKEND_HOST=backend
       - BACKEND_PORT=3001
@@ -35,3 +60,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+volumes:
+  pgdata:
