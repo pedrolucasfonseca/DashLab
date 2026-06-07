@@ -16,7 +16,7 @@ spec:
       containers:
         - name: frontend
           image: dashlab-frontend:local
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
           resources:
