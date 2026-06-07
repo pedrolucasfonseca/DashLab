@@ -25,6 +25,7 @@ build/
 
 # Kubernetes
 k8s/backend-secret.yml
+k8s/fluent-bit.yml
 
 # Terraform
 terraform/.terraform/
