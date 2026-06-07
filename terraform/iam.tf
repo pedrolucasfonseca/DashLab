@@ -66,6 +66,74 @@ resource "aws_iam_openid_connect_provider" "github" {
   }
 }
 
+data "aws_iam_policy_document" "fluent_bit_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect = "Allow"
+
+    principals {
+      type = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+
+    condition {
+      test = "StringEquals"
+      variable = "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:sub"
+      values = ["system:serviceaccount:kube-system:fluent-bit"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "fluent_bit" {
+  name               = "${var.project}-fluent-bit"
+  assume_role_policy = data.aws_iam_policy_document.fluent_bit_assume_role.json
+
+  tags = {
+    Project = var.project
+  }
+}
+
+resource "aws_iam_policy" "fluent_bit" {
+  name = "${var.project}-fluent-bit-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups"
+        ]
+        Resource = [
+          aws_cloudwatch_log_group.backend.arn,
+          "${aws_cloudwatch_log_group.backend.arn}:*",
+          aws_cloudwatch_log_group.frontend.arn,
+          "${aws_cloudwatch_log_group.frontend.arn}:*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = ["logs:CreateLogGroup"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "fluent_bit" {
+  role       = aws_iam_role.fluent_bit.name
+  policy_arn = aws_iam_policy.fluent_bit.arn
+}
+
 resource "aws_iam_role" "github_actions" {
   name = "${var.project}-github-actions"
 

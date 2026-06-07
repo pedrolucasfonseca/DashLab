@@ -24,5 +24,9 @@ output "cluster_endpoint" {
 }
 
 output "github_actions_role_arn" {
-  value = aws_iam_role.github_actions.arn
+    value = aws_iam_role.github_actions.arn
+}
+
+output "fluent_bit_role_arn" {
+    value = aws_iam_role.fluent_bit.arn
 }
