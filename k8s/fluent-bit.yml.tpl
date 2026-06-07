@@ -4,7 +4,7 @@ metadata:
   name: fluent-bit
   namespace: kube-system
   annotations:
-    eks.amazonaws.com/role-arn: REPLACE_WITH_FLUENT_BIT_ROLE_ARN
+    eks.amazonaws.com/role-arn: ${fluent_bit_role_arn}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -63,12 +63,12 @@ data:
     [FILTER]
         Name rewrite_tag
         Match kube.*
-        Rule $kubernetes['labels']['app'] ^backend$ backend.$TAG true
+        Rule $kubernetes['labels']['app'] ^backend$ backend.$TAG false
 
     [FILTER]
         Name rewrite_tag
         Match kube.*
-        Rule $kubernetes['labels']['app'] ^frontend$ frontend.$TAG true
+        Rule $kubernetes['labels']['app'] ^frontend$ frontend.$TAG false
 
     [OUTPUT]
         Name cloudwatch_logs

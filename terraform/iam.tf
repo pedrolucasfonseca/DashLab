@@ -158,6 +158,13 @@ resource "aws_iam_role" "github_actions" {
   }
 }
 
+resource "local_file" "fluent_bit_manifest" {
+  content = templatefile("${path.module}/../k8s/fluent-bit.yml.tpl", {
+    fluent_bit_role_arn = aws_iam_role.fluent_bit.arn
+  })
+  filename = "${path.module}/../k8s/fluent-bit.yml"
+}
+
 resource "aws_iam_role_policy" "github_actions" {
   name = "${var.project}-github-actions-policy"
   role = aws_iam_role.github_actions.id
