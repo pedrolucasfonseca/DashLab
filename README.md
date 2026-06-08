@@ -246,11 +246,9 @@ aws eks update-kubeconfig --region us-east-1 --name dashlab-cluster
 kubectl apply -f k8s/namespace.yml
 kubectl apply -f k8s/backend-secret.yml
 kubectl apply -f k8s/
-
-# verificar status
-kubectl get pods -n dashlab
-kubectl get svc -n dashlab
 ```
+
+Para validar se os pods subiram corretamente, se os recursos estão com limites e se a rede está segura, veja o guia completo em [TESTS.md](docs/TESTS.md).
 
 ---
 
