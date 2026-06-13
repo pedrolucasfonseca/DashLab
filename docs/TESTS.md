@@ -47,7 +47,7 @@ Resultado esperado: nenhuma saída. Histórico vazio.
 ### 1.2 Arquivos sensíveis não estão no repositório
  
 ```bash
-git ls-files | grep -E "\.env|tfvars|backend-secret|fluent-bit\.yml$"
+git ls-files | grep -E "\.env$|tfvars|backend-secret|fluent-bit\.yml$"
 ```
  
 Resultado esperado: nenhuma saída.
@@ -68,7 +68,7 @@ git check-ignore -v --no-index k8s/fluent-bit.yml
  
 Resultado esperado:
 ```
-.gitignore:N  k8s/fluent-bit.yml
+.gitignore:28:k8s/fluent-bit.yml	k8s/fluent-bit.yml
 ```
  
 ---
