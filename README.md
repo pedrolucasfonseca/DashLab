@@ -194,10 +194,10 @@ curl http://localhost:3001/health
 # { "status": "ok", "timestamp": "2026-01-01T00:00:00.000Z" }
 
 curl http://localhost:3001/api
-# { "message": "DashLab API", "version": "0.3.1" }
+# { "message": "DashLab API", "version": "0.4.0" }
 
 curl http://localhost:3001/status
-# { "uptime": 42.3, "version": "0.3.1", "env": "development" }
+# { "uptime": 42.3, "version": "0.4.0", "env": "development" }
 
 curl http://localhost:3001/metrics
 # # HELP http_request_duration_seconds Duração das requisições HTTP em segundos

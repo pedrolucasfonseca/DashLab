@@ -354,7 +354,7 @@ kill %1
 Resultado esperado:
 ```json
 {"status":"ok","timestamp":"2026-..."}
-{"message":"DashLab API","version":"0.3.1"}
+{"message":"DashLab API","version":"0.4.0"}
 ```
  
 ### 7.2 Aplicação acessível via ALB
