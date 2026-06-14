@@ -2,12 +2,18 @@ import { useEffect, useState } from 'react'
 
 function App() {
   const [health, setHealth] = useState(null)
+  const [apiInfo, setApiInfo] = useState(null)
 
   useEffect(() => {
     fetch('/health')
       .then(res => res.json())
       .then(data => setHealth(data))
       .catch(() => setHealth({ status: 'erro' }))
+
+    fetch('/api')
+      .then(res => res.json())
+      .then(data => setApiInfo(data))
+      .catch(() => setApiInfo(null))
   }, [])
 
   return (
@@ -21,6 +27,7 @@ function App() {
           <>
             <p>Status: <strong>{health.status}</strong></p>
             <p>Timestamp: {health.timestamp}</p>
+            <p>Version: <strong>{apiInfo?.version ?? '-'}</strong></p>
           </>
         ) : (
           <p>Carregando...</p>
