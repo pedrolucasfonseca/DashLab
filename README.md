@@ -13,6 +13,7 @@
 - [Execução Local](#execução-local)
 - [Variáveis de Ambiente](#variáveis-de-ambiente)
 - [API](#api)
+- [Observabilidade](#observabilidade)
 - [Infraestrutura](#infraestrutura)
 - [Kubernetes](#kubernetes)
 - [CI/CD](#cicd)
@@ -31,6 +32,7 @@ O projeto cobre os principais pilares de DevOps e DevSecOps:
 - **Kubernetes production-ready:** Readiness/liveness probes, resource limits, Secrets para credenciais
 - **Pipeline seguro:** OIDC sem chaves estáticas, testes antes do build, imagens imutáveis no ECR
 - **Rede segura:** Nodes em subnets privadas, endpoint EKS restrito por IP, ingress explícito nos Security Groups
+- **Observabilidade:** logs estruturados (pino), métricas Prometheus, dashboards Grafana, traces com OpenTelemetry + Jaeger
 
 ---
 
@@ -40,6 +42,10 @@ O projeto cobre os principais pilares de DevOps e DevSecOps:
 |--------|-----------|
 | Frontend | React + Vite |
 | Backend | Node.js + Express |
+| Logging | pino + pino-http |
+| Métricas | prom-client + Prometheus |
+| Dashboards | Grafana |
+| Tracing | OpenTelemetry + Jaeger |
 | Containers | Docker + Docker Compose |
 | Orquestração | Kubernetes (AWS EKS) |
 | Infraestrutura | Terraform |
@@ -80,22 +86,28 @@ flowchart LR
 DashLab/
 ├── .github/
 │   └── workflows/
-│       ├── ci-cd.yml # build, push ECR e deploy EKS
-│       └── infra.yml # instala AWS Load Balancer Controller
+│       ├── ci-cd.yml      # build, push ECR e deploy EKS
+│       └── infra.yml      # instala AWS Load Balancer Controller
 ├── backend/
 │   ├── src/
 │   │   ├── routes/
-│   │   │   ├── api.js # GET /api
-│   │   │   └── health.js # GET /health
-│   │   ├── app.js # configuração Express
-│   │   └── index.js # entrada do servidor
-│   ├── Dockerfile # multi-stage: builder → production
+│   │   │   ├── api.js     # GET /api
+│   │   │   ├── health.js  # GET /health
+│   │   │   └── metrics.js # GET /status
+│   │   ├── app.js         # configuração Express
+│   │   ├── index.js       # entrada do servidor
+│   │   ├── logger.js      # pino (logging estruturado)
+│   │   ├── prom.js        # prom-client (métricas Prometheus)
+│   │   └── tracing.js     # OpenTelemetry SDK
+│   ├── Dockerfile         # multi-stage: builder → production
 │   └── package.json
+├── monitoring/
+│   └── prometheus.yml     # scrape config do Prometheus
 ├── frontend/
 │   ├── src/
-│   │   └── App.jsx # dashboard de monitoramento
-│   ├── Dockerfile # multi-stage: build → nginx
-│   └── nginx.conf # proxy reverso para o backend
+│   │   └── App.jsx        # dashboard de monitoramento
+│   ├── Dockerfile         # multi-stage: build → nginx
+│   └── nginx.conf         # proxy reverso para o backend
 ├── k8s/
 │   ├── namespace.yml
 │   ├── backend-deployment.yml
@@ -103,15 +115,15 @@ DashLab/
 │   ├── frontend-deployment.yml
 │   └── ingress.yml
 ├── terraform/
-│   ├── main.tf # provider e backend remoto
-│   ├── vpc.tf # VPC, subnets, NAT Gateway
-│   ├── eks.tf # cluster e node group
-│   ├── ecr.tf # repositórios + lifecycle policy
-│   ├── iam.tf # roles e OIDC
+│   ├── main.tf            # provider e backend remoto
+│   ├── vpc.tf             # VPC, subnets, NAT Gateway
+│   ├── eks.tf             # cluster e node group
+│   ├── ecr.tf             # repositórios + lifecycle policy
+│   ├── iam.tf             # roles e OIDC
 │   ├── security-groups.tf # SGs do cluster e nodes
 │   ├── variables.tf
 │   └── outputs.tf
-├── terraform-bootstrap/ # S3 + DynamoDB para state remoto
+├── terraform-bootstrap/   # S3 + DynamoDB para state remoto
 └── docker-compose.yml
 ```
 
@@ -133,7 +145,7 @@ cp backend/.env.example backend/.env
 docker compose up --build
 ```
 
-O compose usa o stage `production` do Dockerfile, mesmo ambiente que roda no EKS.
+O compose sobe todos os serviços: backend, frontend, banco, Prometheus, Grafana e Jaeger.
 
 ### Sem Docker
 
@@ -160,6 +172,9 @@ cp backend/.env.example backend/.env
 | `PORT` | Porta do servidor | `3001` |
 | `NODE_ENV` | Ambiente de execução | `development` |
 | `DB_PASSWORD` | Senha do banco (via Secret em produção) | - |
+| `LOG_LEVEL` | Nível de log do pino | `info` |
+| `GF_SECURITY_ADMIN_PASSWORD` | Senha do admin do Grafana | - |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Endpoint OTLP do Jaeger | `http://localhost:4318/v1/traces` |
 
 ---
 
@@ -167,8 +182,10 @@ cp backend/.env.example backend/.env
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `GET` | `/health` | Status do servidor |
-| `GET` | `/api` | Informações da API |
+| `GET` | `/health` | Status de saúde do servidor |
+| `GET` | `/api` | Informações da API (versão) |
+| `GET` | `/status` | Uptime, versão e ambiente |
+| `GET` | `/metrics` | Métricas no formato Prometheus |
 
 **Exemplos:**
 
@@ -177,7 +194,46 @@ curl http://localhost:3001/health
 # { "status": "ok", "timestamp": "2026-01-01T00:00:00.000Z" }
 
 curl http://localhost:3001/api
-# { "message": "DashLab API", "version": "0.3.0" }
+# { "message": "DashLab API", "version": "0.4.0" }
+
+curl http://localhost:3001/status
+# { "uptime": 42.3, "version": "0.4.0", "env": "development" }
+
+curl http://localhost:3001/metrics
+# # HELP http_request_duration_seconds Duração das requisições HTTP em segundos
+# # TYPE http_request_duration_seconds histogram
+```
+
+---
+
+## Observabilidade
+
+A stack de observabilidade roda localmente via Docker Compose e cobre os três pilares: logs, métricas e traces.
+
+| Pilar | Ferramenta | Acesso local |
+|-------|-----------|--------------|
+| Logs | pino + pino-http | `docker compose logs backend` |
+| Métricas | prom-client + Prometheus | http://localhost:9090 |
+| Dashboards | Grafana | http://localhost:3000 (admin / valor de `GF_SECURITY_ADMIN_PASSWORD`) |
+| Traces | OpenTelemetry + Jaeger | http://localhost:16686 |
+
+### Métricas expostas
+
+| Métrica | Tipo | Descrição |
+|---------|------|-----------|
+| `http_request_duration_seconds` | Histogram | Latência por método, rota e status |
+| `http_errors_total` | Counter | Respostas 4xx e 5xx |
+| Métricas padrão do Node.js | Várias | CPU, memória, event loop (via `collectDefaultMetrics`) |
+
+### Verificar traces
+
+```bash
+# gerar traces
+curl http://localhost:3001/health
+curl http://localhost:3001/api
+
+# abrir Jaeger e selecionar o serviço dashlab-backend
+open http://localhost:16686
 ```
 
 ---
@@ -292,6 +348,7 @@ Settings → Secrets → Actions → New repository secret
 | Containers não-root | Dockerfile com usuário `appuser` no stage production |
 | Secrets no K8s | `DB_PASSWORD` via `secretKeyRef`, nunca em manifest literal |
 | Rede isolada | Nodes em subnets privadas, endpoint EKS restrito por IP |
+| Logs estruturados | pino emite JSON sem interpolação de strings — reduz risco de log injection |
 
 ---
 

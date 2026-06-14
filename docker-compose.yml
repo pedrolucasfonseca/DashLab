@@ -15,9 +15,12 @@ services:
       - DB_USER=${POSTGRES_USER}
       - DB_NAME=${POSTGRES_DB}
       - DB_PASSWORD=${DB_PASSWORD}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     depends_on:
       db:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"]
       interval: 10s
@@ -80,6 +83,13 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
     depends_on:
       - prometheus
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: dashlab-jaeger
+    ports:
+      - "16686:16686"
+      - "4318:4318"
 
 volumes:
   pgdata:
