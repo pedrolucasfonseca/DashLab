@@ -17,6 +17,7 @@ Documento de referência para validação do projeto. Organizado por criticidade
 - [7. Aplicação](#7-aplicação)
 - [8. Fluent Bit e CloudWatch](#8-fluent-bit-e-cloudwatch)
 - [9. CI/CD](#9-cicd)
+- [10. Observabilidade (local)](#10-observabilidade-local)
 ---
  
 ## Pré-requisitos
@@ -353,7 +354,7 @@ kill %1
 Resultado esperado:
 ```json
 {"status":"ok","timestamp":"2026-..."}
-{"message":"DashLab API","version":"0.3.0"}
+{"message":"DashLab API","version":"0.3.1"}
 ```
  
 ### 7.2 Aplicação acessível via ALB
@@ -368,19 +369,6 @@ curl http://INGRESS_DNS/api
 ```
  
 Resultado esperado: mesmas respostas obtidas no teste anterior.
- 
-### 7.3 Aplicação acessível via ALB
- 
-```bash
-# Pega o DNS do Ingress
-kubectl get ingress -n dashlab
- 
-# Testa externamente
-curl http://INGRESS_DNS/health
-curl http://INGRESS_DNS/api
-```
- 
-Resultado esperado: mesmas respostas dos testes 7.1 e 7.2.
  
 ---
  
@@ -514,8 +502,59 @@ deployment "frontend" successfully rolled out
 ```
  
 ---
- 
+
+## 10. Observabilidade (local)
+
+Esses testes não requerem infra ativa. Basta subir a stack com `docker compose up --build`.
+
+### 10.1 Logs estruturados em JSON
+
+```bash
+docker compose logs backend --tail=5
+```
+
+Resultado esperado: linhas em JSON com campos `level`, `msg`, `req.method`, `req.url`, `res.statusCode` e `responseTime`.
+
+### 10.2 Endpoint /metrics retorna formato Prometheus
+
+```bash
+curl http://localhost:3001/metrics | head -20
+```
+
+Resultado esperado: linhas com `# HELP` e `# TYPE`, incluindo `http_request_duration_seconds` e `http_errors_total`.
+
+### 10.3 Prometheus coletando o backend
+
+Acesse http://localhost:9090/targets.
+
+Resultado esperado: target `dashlab-backend` com status **UP (1/1)** e endpoint `http://backend:3001/metrics`.
+
+### 10.4 Grafana acessível e conectado
+
+```bash
+curl -s http://localhost:3000/api/health | grep -o '"database":"ok"'
+```
+
+Resultado esperado: `"database":"ok"`.
+
+Acesse http://localhost:3000 e verifique o dashboard **DashLab** com os painéis de Latência (p50/p95/p99), Error Rate % e Requisições por segundo.
+
+### 10.5 Jaeger recebendo traces do backend
+
+```bash
+curl http://localhost:3001/health
+curl http://localhost:3001/api
+curl http://localhost:3001/status
+```
+
+Acesse http://localhost:16686, selecione o serviço `dashlab-backend` no dropdown e clique em **Find Traces**.
+
+Resultado esperado: traces listados com spans das requisições HTTP, mostrando rota, método e duração.
+
+---
+
 ## Observações
- 
+
 - Testes das seções 3 a 9 requerem infra ativa. Lembre de destruir após os testes para evitar custos: `kubectl delete -f k8s/ && sleep 60 && cd terraform && terraform destroy -auto-approve`
 - O arquivo `k8s/fluent-bit.yml` é gerado automaticamente pelo Terraform e não deve ser editado manualmente
+- Testes da seção 10 são locais e não geram custo AWS
